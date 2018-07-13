@@ -22,6 +22,7 @@ func (cli *CLI) printUsage() {
 	fmt.Println("  createblockchain -address ADDRESS - create a blockchain with address")
 	fmt.Println("  printchain -print all the blocks of the blockchain")
 	fmt.Println("  getbalance -address ADDRESS - check the unspent balance of address")
+	fmt.Println("  createwallet - create a wallet address")
 	fmt.Println("  send -from FROM -to TO -amount AMOUNT - send AMOUNT from address to address")
 }
 
@@ -32,12 +33,23 @@ func (cli *CLI) createBlockchain(address string) {
 	fmt.Println("Done!")
 }
 
+func (cli *CLI) createWallet() {
+	wallet := NewWallet()
+
+	fmt.Printf("Your new address: %s\n", wallet.GetAddress())
+}
+
 func (cli *CLI) getBalance(address string) {
+	if !ValidateAddress(address) {
+		log.Panic("ERROR: Address is not valid")
+	}
 	bc := NewBlockchain(address)
 	defer bc.db.Close()
 
 	balance := 0
-	UTXOs := bc.FindUTXO(address)
+	pubKeyHash := Base58Decode([]byte(address))
+	pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-4]
+	UTXOs := bc.FindUTXO(pubKeyHash)
 
 	for _, out := range UTXOs {
 		balance += out.Value
@@ -80,6 +92,7 @@ func (cli *CLI) Run() {
 	cli.validateArgs()
 
 	createBlockchainCmd := flag.NewFlagSet("createblockchain", flag.ExitOnError)
+	createWalletCmd := flag.NewFlagSet("createwallet", flag.ExitOnError)
 	getBalanceCmd := flag.NewFlagSet("getbalance", flag.ExitOnError)
 	printChainCmd := flag.NewFlagSet("printchain", flag.ExitOnError)
 	sendCmd := flag.NewFlagSet("send", flag.ExitOnError)
@@ -93,6 +106,11 @@ func (cli *CLI) Run() {
 	switch os.Args[1] {
 	case "createblockchain":
 		err := createBlockchainCmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Panic(err)
+		}
+	case "createwallet":
+		err := createWalletCmd.Parse(os.Args[2:])
 		if err != nil {
 			log.Panic(err)
 		}
@@ -122,6 +140,10 @@ func (cli *CLI) Run() {
 			os.Exit(1)
 		}
 		cli.createBlockchain(*createBlockchainAddress)
+	}
+
+	if createWalletCmd.Parsed() {
+		cli.createWallet()
 	}
 
 	if getBalanceCmd.Parsed() {

@@ -20,7 +20,6 @@ func (cli *CLI) send(from, to string, amount int) {
 
 	tx := NewUTXOTransaction(from, to, amount, &UTXOSet)
 	cbTx := NewCoinbaseTX(from, "")
-	fmt.Println(cbTx.ID)
 	txs := []*Transaction{cbTx, tx}
 
 	newBlock := bc.MineBlock(txs)
